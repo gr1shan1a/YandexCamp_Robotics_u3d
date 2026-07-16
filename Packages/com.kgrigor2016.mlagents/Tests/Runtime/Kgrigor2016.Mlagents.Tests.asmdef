@@ -1,0 +1,11 @@
+{
+    "name": "Kgrigor2016.Mlagents.Tests",
+    "references": [
+        "Kgrigor2016.Mlagents"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": []
+}

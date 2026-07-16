@@ -1,0 +1,10 @@
+{
+    "name": "Kgrigor2016.Mlagents.Editor",
+    "references": [
+      "Kgrigor2016.Mlagents"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}

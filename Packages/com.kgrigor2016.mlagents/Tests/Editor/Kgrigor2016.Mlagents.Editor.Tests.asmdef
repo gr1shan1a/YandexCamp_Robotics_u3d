@@ -1,0 +1,14 @@
+{
+    "name": "Kgrigor2016.Mlagents.Editor.Tests",
+    "references": [
+        "Kgrigor2016.Mlagents.Editor",
+        "Kgrigor2016.Mlagents"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}
