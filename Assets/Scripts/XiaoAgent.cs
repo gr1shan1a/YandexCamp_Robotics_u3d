@@ -27,7 +27,7 @@ public class XiaoAgent : Agent
     {
         tracks = GetComponent<TrackController>();
         sensors = GetComponent<VirtualSensors>();
-        gripper = GetComponentInChildren<GripperController>();
+        gripper = GripperController.FindController(transform);
     }
 
     public override void Initialize()

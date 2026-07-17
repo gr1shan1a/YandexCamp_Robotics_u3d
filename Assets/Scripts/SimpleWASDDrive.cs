@@ -14,6 +14,19 @@ public class SimpleWASDDrive : MonoBehaviour
 
     void Awake()
     {
+        TrackController trackController = GetComponent<TrackController>();
+        KeyboardTrackInput trackInput = GetComponent<KeyboardTrackInput>();
+        if (trackController != null && trackController.enabled &&
+            trackInput != null && trackInput.enabled && trackInput.enableKeyboard)
+        {
+            enabled = false;
+            Debug.LogWarning(
+                "SimpleWASDDrive disabled: KeyboardTrackInput already controls this Rigidbody.",
+                this
+            );
+            return;
+        }
+
         rb = GetComponent<Rigidbody>();
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         rb.interpolation = RigidbodyInterpolation.Interpolate;

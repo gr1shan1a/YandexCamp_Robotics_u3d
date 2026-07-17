@@ -65,7 +65,7 @@ public class RobotBrain : Agent
         rb = GetComponent<Rigidbody>();
         tracks = GetComponent<TrackController>();
         sensors = GetComponent<VirtualSensors>();
-        gripper = GetComponentInChildren<GripperController>();
+        gripper = GripperController.FindController(transform);
     }
 
     public override void Initialize()

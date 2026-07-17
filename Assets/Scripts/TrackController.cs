@@ -9,6 +9,10 @@ public class TrackController : MonoBehaviour
     public float turnK = 0.30f;
     public float maxLinearCmd = 0.25f;
     public float movementYawOffset = 90f;
+    [Tooltip("How quickly A/D reaches full steering input.")]
+    public float steeringAcceleration = 2.5f;
+    [Tooltip("How quickly steering returns to center after releasing A/D.")]
+    public float steeringDeceleration = 4f;
 
     [Header("Motor model")]
     public float motorDeadzone = 10f;
@@ -19,6 +23,7 @@ public class TrackController : MonoBehaviour
     Rigidbody rb;
     float gasCommand;
     float steerCommand;
+    float smoothSteerCommand;
     float leftPwm;
     float rightPwm;
 
@@ -45,6 +50,7 @@ public class TrackController : MonoBehaviour
     {
         gasCommand = 0f;
         steerCommand = 0f;
+        smoothSteerCommand = 0f;
         leftPwm = 0f;
         rightPwm = 0f;
         rb.linearVelocity = Vector3.zero;
@@ -53,8 +59,17 @@ public class TrackController : MonoBehaviour
 
     void FixedUpdate()
     {
+        bool acceleratingSteer = Mathf.Sign(steerCommand) == Mathf.Sign(smoothSteerCommand) &&
+                                 Mathf.Abs(steerCommand) > Mathf.Abs(smoothSteerCommand);
+        float steeringRate = acceleratingSteer ? steeringAcceleration : steeringDeceleration;
+        smoothSteerCommand = Mathf.MoveTowards(
+            smoothSteerCommand,
+            steerCommand,
+            Mathf.Max(0f, steeringRate) * Time.fixedDeltaTime
+        );
+
         float linear = Mathf.Clamp(gasCommand * moveSpeed, -maxLinearCmd, maxLinearCmd);
-        float turn = steerCommand * turnK;
+        float turn = smoothSteerCommand * turnK;
 
         float targetLeftPwm = SpeedToPwm(linear - turn);
         float targetRightPwm = SpeedToPwm(linear + turn);

@@ -9,8 +9,10 @@ using UnityEngine.InputSystem;
 /// Обычный Play (без mlagents-learn) → проверяй позы/roll/губки/захват.
 ///
 /// Клавиши:
-///   1 Idle   2 Reach   3 Carry
-///   Q / E — roll локтя
+///   1 Idle
+///   Hold 2 — lower arm, hold 3 — raise arm; release to stop
+///   Hold F — bend elbow, hold G — straighten elbow; release to stop
+///   Q — wrist 0 degrees, E — wrist 90 degrees around rotatePoint
 ///   Z / C — сомкнуть / раскрыть губки
 ///   Space — захват мяча (Close),  X — отпустить (Open)
 ///   R — полный сброс
@@ -18,15 +20,19 @@ using UnityEngine.InputSystem;
 public class ArmKeyboardTester : MonoBehaviour
 {
     public GripperController gripper;
-    public float rollInputSpeed = 1.5f;
     public bool logKeyPresses = true;
 
-    float m_Roll;
     bool warnedMissingGripper;
+    bool armWasMoving;
+    bool elbowWasMoving;
 
     void Awake()
     {
-        if (gripper == null) gripper = GetComponentInChildren<GripperController>();
+        GripperController primary = GripperController.FindController(transform.root);
+        if (primary != null)
+        {
+            gripper = primary;
+        }
     }
 
     void Update()
@@ -42,16 +48,18 @@ public class ArmKeyboardTester : MonoBehaviour
             return;
         }
 
-        bool k1, k2, k3, kQ, kE, kZ, kC, kSpace, kX, kR;
+        bool k1, k2, k3, kF, kG, kQ, kE, kZ, kC, kSpace, kX, kR;
 
 #if ENABLE_INPUT_SYSTEM
         var kb = Keyboard.current;
         if (kb == null) return;
         k1 = kb.digit1Key.wasPressedThisFrame;
-        k2 = kb.digit2Key.wasPressedThisFrame;
-        k3 = kb.digit3Key.wasPressedThisFrame;
-        kQ = kb.qKey.isPressed;
-        kE = kb.eKey.isPressed;
+        k2 = kb.digit2Key.isPressed;
+        k3 = kb.digit3Key.isPressed;
+        kF = kb.fKey.isPressed;
+        kG = kb.gKey.isPressed;
+        kQ = kb.qKey.wasPressedThisFrame;
+        kE = kb.eKey.wasPressedThisFrame;
         kZ = kb.zKey.wasPressedThisFrame;
         kC = kb.cKey.wasPressedThisFrame;
         kSpace = kb.spaceKey.wasPressedThisFrame;
@@ -59,10 +67,12 @@ public class ArmKeyboardTester : MonoBehaviour
         kR = kb.rKey.wasPressedThisFrame;
 #else
         k1 = Input.GetKeyDown(KeyCode.Alpha1);
-        k2 = Input.GetKeyDown(KeyCode.Alpha2);
-        k3 = Input.GetKeyDown(KeyCode.Alpha3);
-        kQ = Input.GetKey(KeyCode.Q);
-        kE = Input.GetKey(KeyCode.E);
+        k2 = Input.GetKey(KeyCode.Alpha2);
+        k3 = Input.GetKey(KeyCode.Alpha3);
+        kF = Input.GetKey(KeyCode.F);
+        kG = Input.GetKey(KeyCode.G);
+        kQ = Input.GetKeyDown(KeyCode.Q);
+        kE = Input.GetKeyDown(KeyCode.E);
         kZ = Input.GetKeyDown(KeyCode.Z);
         kC = Input.GetKeyDown(KeyCode.C);
         kSpace = Input.GetKeyDown(KeyCode.Space);
@@ -73,26 +83,56 @@ public class ArmKeyboardTester : MonoBehaviour
         if (k1)
         {
             gripper.SetPose(GripperController.ArmPose.Idle);
+            armWasMoving = false;
             LogCommand("1 -> Idle");
         }
 
-        if (k2)
+        float armInput = (k3 ? 1f : 0f) - (k2 ? 1f : 0f);
+        if (armInput != 0f)
         {
-            gripper.SetPose(GripperController.ArmPose.Reach);
-            LogCommand("2 -> Reach");
+            gripper.JogArm(armInput, Time.deltaTime);
+            if (!armWasMoving)
+            {
+                LogCommand(armInput < 0f ? "2 held -> lower arm" : "3 held -> raise arm");
+            }
+
+            armWasMoving = true;
+        }
+        else if (armWasMoving && !k1)
+        {
+            gripper.StopArm();
+            armWasMoving = false;
+            LogCommand("2/3 released -> hold current position");
         }
 
-        if (k3)
+        float elbowInput = (kG ? 1f : 0f) - (kF ? 1f : 0f);
+        if (elbowInput != 0f)
         {
-            gripper.SetPose(GripperController.ArmPose.Carry);
-            LogCommand("3 -> Carry");
+            gripper.JogElbow(elbowInput, Time.deltaTime);
+            if (!elbowWasMoving)
+            {
+                LogCommand(elbowInput < 0f ? "F held -> bend elbow" : "G held -> straighten elbow");
+            }
+
+            elbowWasMoving = true;
+        }
+        else if (elbowWasMoving)
+        {
+            gripper.StopElbow();
+            elbowWasMoving = false;
+            LogCommand("F/G released -> hold elbow position");
         }
 
-        float dir = (kE ? 1f : 0f) - (kQ ? 1f : 0f);
-        if (dir != 0f)
+        if (kQ)
         {
-            m_Roll = Mathf.Clamp(m_Roll + dir * rollInputSpeed * Time.deltaTime, -1f, 1f);
-            gripper.SetWristRoll(m_Roll);
+            gripper.SetWristAngleDegrees(0f);
+            LogCommand("Q -> wrist 0 degrees");
+        }
+
+        if (kE)
+        {
+            gripper.SetWristAngleDegrees(90f);
+            LogCommand("E -> wrist 90 degrees");
         }
 
         if (kZ)
@@ -122,7 +162,8 @@ public class ArmKeyboardTester : MonoBehaviour
         if (kR)
         {
             gripper.ResetState();
-            m_Roll = 0f;
+            armWasMoving = false;
+            elbowWasMoving = false;
             LogCommand("R -> Reset");
         }
     }
@@ -141,12 +182,15 @@ public class ArmKeyboardTester : MonoBehaviour
     {
         GUI.Label(new Rect(10, 10, 460, 160),
             "Тест руки (без ML-Agents):\n" +
-            "1 Idle  2 Reach  3 Carry\n" +
-            "Q/E — roll кисти\n" +
+            "1 — Idle\n" +
+            "Удерживай 2/3 — опустить/поднять; отпусти — стоп\n" +
+            "Удерживай F/G — согнуть/разогнуть локоть; отпусти — стоп\n" +
+            "Q — кисть 0°, E — кисть 90° вокруг rotatePoint\n" +
             "Z/C — сомкнуть / раскрыть губки\n" +
             "Space — захват,  X — отпустить,  R — сброс\n" +
             (gripper != null
                 ? $"Поза: {gripper.CurrentPose}  Доехала: {gripper.PoseReached}\n" +
+                  $"Локоть: {gripper.CurrentElbowAngle:F1}°  Готов: {gripper.ElbowReady}\n" +
                   $"Губки сомкнуты: {gripper.JawsClosed}  Мяч: {gripper.HasBall}"
                 : "GripperController не найден!"));
     }
