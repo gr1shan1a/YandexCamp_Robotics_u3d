@@ -107,6 +107,7 @@ public class GripperController : MonoBehaviour
     public bool IsHolding => heldBall != null;
     public bool HasBall => IsHolding;
     public bool JawsClosed { get; private set; }
+    public float JawClosure01 { get; private set; }
     public bool ElbowReady => elbowConfigurationValid;
     public float CurrentElbowAngle => currentElbowAngle;
     public ArmPose CurrentPose { get; private set; } = ArmPose.Idle;
@@ -393,6 +394,7 @@ public class GripperController : MonoBehaviour
     public void CloseJaws()
     {
         JawsClosed = true;
+        JawClosure01 = 1f;
         TryGrab();
         targetJawAngle = IsHolding ? GetBallHoldAngle() : Mathf.Max(0f, closeAngle);
     }
@@ -436,7 +438,28 @@ public class GripperController : MonoBehaviour
     public void OpenJaws()
     {
         JawsClosed = false;
+        JawClosure01 = 0f;
         targetJawAngle = -Mathf.Max(0f, openAngle);
+    }
+
+    public void SetJawClosure01(float closure01, bool tryGrab = false)
+    {
+        JawClosure01 = Mathf.Clamp01(closure01);
+        JawsClosed = JawClosure01 >= 0.5f;
+
+        if (tryGrab && JawsClosed)
+        {
+            TryGrab();
+        }
+
+        if (JawClosure01 <= 0.001f)
+        {
+            Release();
+        }
+
+        targetJawAngle = IsHolding
+            ? GetBallHoldAngle()
+            : Mathf.Lerp(-Mathf.Max(0f, openAngle), Mathf.Max(0f, closeAngle), JawClosure01);
     }
 
     void UpdateJaws()

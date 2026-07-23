@@ -155,6 +155,38 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1673892006}
   m_LocalEulerAnglesHint: {x: -101.923, y: -152.52, z: 130.69699}
+--- !u!1 &154842763
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 154842764}
+  m_Layer: 0
+  m_Name: CameraPanPivot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &154842764
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 154842763}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.0097, y: 1.353, z: -0.359}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1664621703}
+  m_Father: {fileID: 940647895}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &159169891
 GameObject:
   m_ObjectHideFlags: 0
@@ -687,7 +719,7 @@ PrefabInstance:
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: d272f8dd76fe5413b936eba978c0b2c1, type: 3}
       insertIndex: 0
-      addedObject: {fileID: 1664621703}
+      addedObject: {fileID: 154842764}
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: d272f8dd76fe5413b936eba978c0b2c1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 515360912}
@@ -764,6 +796,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d272f8dd76fe5413b936eba978c0b2c1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 940647914}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d272f8dd76fe5413b936eba978c0b2c1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 940647917}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d272f8dd76fe5413b936eba978c0b2c1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 940647916}
     - targetCorrespondingSourceObject: {fileID: -7146521406498821007, guid: d272f8dd76fe5413b936eba978c0b2c1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1673892005}
@@ -1586,7 +1624,7 @@ MonoBehaviour:
   rightIRPoint: {fileID: 159169892}
   gripperIRPoint: {fileID: 1740975093}
   ultrasonicRange: 2
-  irRange: 0.15
+  irRange: 0.4
   gripperRange: 0.08
   obstacleMask:
     serializedVersion: 2
@@ -1681,7 +1719,7 @@ MonoBehaviour:
   actionRatePenalty: 0.002
   obstaclePenalty: 0.01
   yoloCamera: {fileID: 940647907}
-  cameraPivot: {fileID: 0}
+  cameraPivot: {fileID: 154842764}
   cameraTurnSpeed: 90
   cameraMaxAngle: 60
 --- !u!114 &940647910
@@ -1697,6 +1735,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KeyboardTrackInput
   enableKeyboard: 1
+  publishToRos: 1
+  rosBridge: {fileID: 940647915}
+  showDebugHud: 1
+  logInputState: 1
+  debugLogInterval: 1
+  useCommandOverride: 1
+  overrideLinear: 0.25
+  overrideAngular: 0
 --- !u!114 &940647911
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1755,7 +1801,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 940647894}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 86e9438ab1ac64bd6ba27315d682b699, type: 3}
   m_Name: 
@@ -1763,7 +1809,7 @@ MonoBehaviour:
   bridge: {fileID: 940647915}
   enableTeleoperation: 1
   publishRateHz: 20
-  enableGripperKeys: 0
+  enableGripperKeys: 1
   driveUnityPreview: 1
   unityTracks: {fileID: 940647903}
   showDebugHud: 1
@@ -1782,8 +1828,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ROSBridge
   velocityTopic: /cmd_vel
-  maxLinearSpeed: 0.2
-  maxAngularSpeed: 0.6
+  maxLinearSpeed: 2.5
+  maxAngularSpeed: 2.5
   emaAlpha: 0.8
   manualTeleopEnabled: 1
   manualPublishRateHz: 20
@@ -1799,10 +1845,42 @@ MonoBehaviour:
   enableGripperTopic: 1
   gripperTopic: /cmd_gripper
   closeGripperCommand: 2
-  openGripperCommand: 4
-  enableCameraTopic: 0
+  openGripperCommand: 1
+  enableCameraTopic: 1
   cameraTopic: /cmd_camera_pan
+  enableCameraTiltTopic: 0
+  cameraTiltTopic: /cmd_camera_tilt
+  swapCameraTopics: 1
+  cameraPanLimitDegrees: 20
+  cameraTiltLimitDegrees: 12
+  cameraCommandStepDegrees: 1
+  enableDirectServoTopic: 1
+  directServoTopic: /cmd_servo
 --- !u!114 &940647916
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 940647894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f2d2860b2f74a779e5dcf9154d78a33, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MjpegStreamViewer
+  streamUrl: http://192.168.2.155:8080/
+  connectOnStart: 1
+  requestTimeoutSeconds: 5
+  reconnectDelaySeconds: 2
+  showOnGUI: 1
+  displayRect:
+    serializedVersion: 2
+    x: 20
+    y: 20
+    width: 480
+    height: 270
+  keepAspect: 1
+--- !u!114 &940647917
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1816,11 +1894,100 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ROSArmKeyboardTeleop
   bridge: {fileID: 940647915}
   enableTeleoperation: 1
-  lowerArmCommand: 1
-  closeClawCommand: 2
-  homeArmCommand: 3
-  openClawCommand: 4
+  publishDirectServoCommands: 0
+  directServoPublishRateHz: 20
   logCommands: 1
+  useLegacyMacrosWhenDirectDisabled: 1
+  allowLegacyWholeArmMacros: 0
+  prepareToGrabCommand: 1
+  closeClawCommand: 2
+  resetArmCommand: 3
+  openClawCommand: 1
+  armRotationServo:
+    label: Arm rotation (Q/E)
+    enabled: 1
+    channel: 1
+    minAngle: 60
+    maxAngle: 120
+    startAngle: 90
+    degreesPerSecond: 12
+    invertInput: 0
+  shoulderServo:
+    label: Shoulder (2/3)
+    enabled: 1
+    channel: 2
+    minAngle: 37
+    maxAngle: 101.6
+    startAngle: 103.8
+    degreesPerSecond: 12
+    invertInput: 0
+  elbowServo:
+    label: Elbow (2/3 and F/G)
+    enabled: 1
+    channel: 3
+    minAngle: 53.6
+    maxAngle: 105
+    startAngle: 90
+    degreesPerSecond: 10
+    invertInput: 0
+  clawServo:
+    label: Claw (Z/C)
+    enabled: 1
+    channel: 4
+    minAngle: 50
+    maxAngle: 65.4
+    startAngle: 50
+    degreesPerSecond: 8.2
+    invertInput: 0
+  clawOpenAngle: 50
+  clawCubeAngle: 60
+  clawBallAngle: 70
+  unityCubeJawClosure: 0.5
+  enforceCalibratedServoMap: 1
+  enforceSafeElbowLimit: 1
+  minimumSafeElbowAngle: 120
+  gripper: {fileID: 1543237030}
+  mirrorToUnity: 1
+  disableArmKeyboardTester: 1
+  invertUnityShoulder: 0
+  invertUnityElbow: 0
+  invertUnityWrist: 0
+  invertUnityClaw: 0
+  unityJawDegreesPerSecond: 12
+  unityJawClosurePerSecond: 0.582
+  unityMaxJawClosure: 0.642
+  unityWristMinAngle: 0
+  unityWristMaxAngle: 90
+  unityWristDegreesPerSecond: 30
+  cameraPivot: {fileID: 1664621703}
+  enableCameraControl: 1
+  publishCameraCommands: 1
+  useDirectCameraServos: 0
+  publishLegacyVerticalCameraFallback: 1
+  cameraDegreesPerSecond: 20
+  cameraPanMaxAngle: 20
+  cameraTiltMaxAngle: 12
+  invertCameraPan: 0
+  invertCameraTilt: 0
+  cameraPublishRateHz: 20
+  cameraTiltServo:
+    label: Camera vertical (I/K, confirmed S7)
+    enabled: 1
+    channel: 7
+    minAngle: 78
+    maxAngle: 102
+    startAngle: 90
+    degreesPerSecond: 10
+    invertInput: 1
+  cameraPanServo:
+    label: Camera horizontal (J/L, probable S8)
+    enabled: 0
+    channel: 8
+    minAngle: 15
+    maxAngle: 30
+    startAngle: 20
+    degreesPerSecond: 6
+    invertInput: 0
 --- !u!1 &995613410
 GameObject:
   m_ObjectHideFlags: 0
@@ -2997,13 +3164,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1664621699}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.17946759, y: 0.856314, z: -0.19014923, w: 0.44537747}
-  m_LocalPosition: {x: -3.3859997, y: 2.983, z: 1.9469995}
+  m_LocalRotation: {x: 0.12539576, y: 0.663249, z: 0.015602501, w: 0.737654}
+  m_LocalPosition: {x: 0.16730005, y: 1.1079999, z: 0.0030000508}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 940647895}
-  m_LocalEulerAnglesHint: {x: 29.046, y: 127.398, z: 9.081}
+  m_Father: {fileID: 154842764}
+  m_LocalEulerAnglesHint: {x: 9.457, y: 84.838, z: 11.067}
 --- !u!1 &1673892001 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -7146521406498821007, guid: d272f8dd76fe5413b936eba978c0b2c1, type: 3}

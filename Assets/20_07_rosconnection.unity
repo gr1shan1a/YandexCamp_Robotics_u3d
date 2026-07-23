@@ -1586,7 +1586,7 @@ MonoBehaviour:
   rightIRPoint: {fileID: 159169892}
   gripperIRPoint: {fileID: 1740975093}
   ultrasonicRange: 2
-  irRange: 0.15
+  irRange: 0.4
   gripperRange: 0.08
   obstacleMask:
     serializedVersion: 2
@@ -1697,6 +1697,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KeyboardTrackInput
   enableKeyboard: 1
+  publishToRos: 1
+  rosBridge: {fileID: 940647915}
+  showDebugHud: 1
+  logInputState: 1
+  debugLogInterval: 1
+  useCommandOverride: 1
+  overrideLinear: 0.25
+  overrideAngular: 0
 --- !u!114 &940647911
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1755,7 +1763,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 940647894}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 86e9438ab1ac64bd6ba27315d682b699, type: 3}
   m_Name: 
@@ -1782,8 +1790,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ROSBridge
   velocityTopic: /cmd_vel
-  maxLinearSpeed: 0.2
-  maxAngularSpeed: 0.6
+  maxLinearSpeed: 2.5
+  maxAngularSpeed: 2.5
   emaAlpha: 0.8
   manualTeleopEnabled: 1
   manualPublishRateHz: 20
@@ -1799,8 +1807,8 @@ MonoBehaviour:
   enableGripperTopic: 1
   gripperTopic: /cmd_gripper
   closeGripperCommand: 2
-  openGripperCommand: 4
-  enableCameraTopic: 0
+  openGripperCommand: 1
+  enableCameraTopic: 1
   cameraTopic: /cmd_camera_pan
 --- !u!114 &940647916
 MonoBehaviour:
@@ -1816,11 +1824,40 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ROSArmKeyboardTeleop
   bridge: {fileID: 940647915}
   enableTeleoperation: 1
-  lowerArmCommand: 1
-  closeClawCommand: 2
-  homeArmCommand: 3
-  openClawCommand: 4
+  openClawCommand: 1
+  closeAndRaiseCommand: 2
+  cameraPivot: {fileID: 1664621703}
+  enableCameraControl: 1
+  publishCameraCommands: 1
+  cameraTurnSpeed: 90
+  cameraMaxAngle: 60
+  invertCameraDirection: 0
   logCommands: 1
+  cameraPublishRateHz: 20
+--- !u!114 &940647917
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 940647894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f2d2860b2f74a779e5dcf9154d78a33, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MjpegStreamViewer
+  streamUrl: http://192.168.2.155:8080/?action=stream
+  connectOnStart: 1
+  requestTimeoutSeconds: 5
+  reconnectDelaySeconds: 2
+  showOnGUI: 1
+  displayRect:
+    serializedVersion: 2
+    x: 20
+    y: 20
+    width: 480
+    height: 270
+  keepAspect: 1
 --- !u!1 &995613410
 GameObject:
   m_ObjectHideFlags: 0

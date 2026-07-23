@@ -17,6 +17,12 @@ public class RobotBrain : Agent
         GrabBall
     }
 
+    public enum VisionInput
+    {
+        SimulatedCamera,
+        RealUdp
+    }
+
     [Header("Task")]
     public Transform targetBall;
     public Transform targetZone;
@@ -36,7 +42,9 @@ public class RobotBrain : Agent
     public float obstaclePenalty = 0.01f;
 
     [Header("Perception")]
+    public VisionInput visionInput = VisionInput.SimulatedCamera;
     public SimulatedYoloCamera yoloCamera;
+    public RealVision realVision;
 
     [Header("Camera servo")]
     public Transform cameraPivot;
@@ -60,12 +68,18 @@ public class RobotBrain : Agent
     float previousGas;
     float previousSteer;
 
-    void Awake()
+    protected override void Awake()
     {
+        base.Awake();
         rb = GetComponent<Rigidbody>();
         tracks = GetComponent<TrackController>();
         sensors = GetComponent<VirtualSensors>();
         gripper = GripperController.FindController(transform);
+
+        if (realVision == null)
+        {
+            realVision = GetComponent<RealVision>();
+        }
     }
 
     public override void Initialize()
@@ -112,21 +126,22 @@ public class RobotBrain : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        if (yoloCamera != null)
+        RefreshVision();
+
+        bool visible = VisionIsTargetVisible();
+        float visionTargetX = VisionTargetX();
+        float visionDistance01 = VisionDistance01();
+
+        if (visible)
         {
-            yoloCamera.UpdateDetection();
-            if (yoloCamera.IsTargetVisible)
-            {
-                lastKnownBallDirection = yoloCamera.TargetX;
-                timeSinceLastDetection = 0f;
-            }
-            else
-            {
-                timeSinceLastDetection += Time.deltaTime;
-            }
+            lastKnownBallDirection = visionTargetX;
+            timeSinceLastDetection = 0f;
+        }
+        else
+        {
+            timeSinceLastDetection += Time.deltaTime;
         }
 
-        bool visible = yoloCamera != null && yoloCamera.IsTargetVisible;
         bool hasBall = gripper != null && gripper.IsHolding;
         Vector3 offsetFromStart = transform.position - startPosition;
         float heading = Mathf.DeltaAngle(0f, transform.eulerAngles.y) / 180f;
@@ -138,8 +153,8 @@ public class RobotBrain : Agent
         sensor.AddObservation(sensors.LeftIR);
         sensor.AddObservation(sensors.RightIR);
         sensor.AddObservation(sensors.GripperIR);
-        sensor.AddObservation(visible ? yoloCamera.TargetX : 0f);
-        sensor.AddObservation(visible ? yoloCamera.Distance01 : 1f);
+        sensor.AddObservation(visible ? visionTargetX : 0f);
+        sensor.AddObservation(visible ? visionDistance01 : 1f);
         sensor.AddObservation(lastKnownBallDirection);
         sensor.AddObservation(visible ? 1f : 0f);
         sensor.AddObservation(cameraServo01);
@@ -244,7 +259,8 @@ public class RobotBrain : Agent
     void ApplyRewards(float gas, float steer)
     {
         bool hasBall = gripper != null && gripper.IsHolding;
-        bool visible = yoloCamera != null && yoloCamera.IsTargetVisible;
+        bool visible = VisionIsTargetVisible();
+        float visionTargetX = VisionTargetX();
         float currentBallDistance = DistanceToBall();
         float distanceDelta = previousBallDistance - currentBallDistance;
 
@@ -256,7 +272,7 @@ public class RobotBrain : Agent
 
         if (visible)
         {
-            AddReward((1f - Mathf.Abs(yoloCamera.TargetX)) * 0.002f);
+            AddReward((1f - Mathf.Abs(visionTargetX)) * 0.002f);
         }
 
         if (sensors.Ultrasonic01 < 0.15f || sensors.LeftIR > 0.5f || sensors.RightIR > 0.5f)
@@ -299,6 +315,44 @@ public class RobotBrain : Agent
             AddReward(-0.1f);
             EndEpisode();
         }
+    }
+
+    void RefreshVision()
+    {
+        if (visionInput == VisionInput.SimulatedCamera && yoloCamera != null)
+        {
+            yoloCamera.UpdateDetection();
+        }
+    }
+
+    bool VisionIsTargetVisible()
+    {
+        if (visionInput == VisionInput.RealUdp)
+        {
+            return realVision != null && realVision.IsTargetVisible;
+        }
+
+        return yoloCamera != null && yoloCamera.IsTargetVisible;
+    }
+
+    float VisionTargetX()
+    {
+        if (visionInput == VisionInput.RealUdp)
+        {
+            return realVision != null ? realVision.TargetX : 0f;
+        }
+
+        return yoloCamera != null ? yoloCamera.TargetX : 0f;
+    }
+
+    float VisionDistance01()
+    {
+        if (visionInput == VisionInput.RealUdp)
+        {
+            return realVision != null ? realVision.Distance01 : 1f;
+        }
+
+        return yoloCamera != null ? yoloCamera.Distance01 : 1f;
     }
 
     void ResetBall()
