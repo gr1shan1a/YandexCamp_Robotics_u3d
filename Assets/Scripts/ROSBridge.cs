@@ -61,6 +61,19 @@ public class ROSBridge : MonoBehaviour
     public bool enableDirectServoTopic;
     public string directServoTopic = "/cmd_servo";
 
+    [Header("Target-aware claw")]
+    [Tooltip("Use calibrated S4 angles instead of the legacy command 2 for object pickup.")]
+    public bool useDirectServoForTargetGrip = true;
+    [Range(1, 8)] public int clawServoChannel = 4;
+    [Range(15f, 160f)] public float clawOpenAngle = 50f;
+    [Range(15f, 160f)] public float clawCubeGripAngle = 60f;
+    [Range(15f, 160f)] public float clawBallGripAngle = 70f;
+
+    [Header("Target grip diagnostics (read only)")]
+    [SerializeField] int lastGripTargetClassId = -1;
+    [SerializeField] float lastGripAngle;
+    [SerializeField] int targetGripCommandsSent;
+
     ROSConnection ros;
     float smoothLinear;
     float smoothAngular;
@@ -79,6 +92,11 @@ public class ROSBridge : MonoBehaviour
     void Awake()
     {
         ros = ROSConnection.GetOrCreateInstance();
+
+        if (useDirectServoForTargetGrip)
+        {
+            enableDirectServoTopic = true;
+        }
 
         if (unityTracks == null)
         {
@@ -192,9 +210,17 @@ public class ROSBridge : MonoBehaviour
 
     public void PublishDrive(float normalizedLinear, float normalizedAngular)
     {
+        PublishDriveInternal(normalizedLinear, normalizedAngular, rotateCommandFrame90);
+    }
+
+    void PublishDriveInternal(
+        float normalizedLinear,
+        float normalizedAngular,
+        bool remapManualCommandFrame)
+    {
         RegisterPublishers();
 
-        if (rotateCommandFrame90)
+        if (remapManualCommandFrame)
         {
             float inputLinear = normalizedLinear;
             normalizedLinear = normalizedAngular;
@@ -219,6 +245,14 @@ public class ROSBridge : MonoBehaviour
         PublishTwist(smoothLinear * maxLinearSpeed, smoothAngular * maxAngularSpeed);
     }
 
+    public void PublishCommand(float normalizedLinear, float normalizedAngular)
+    {
+        // Agent outputs already use ROS semantics: linear.x is throttle and
+        // angular.z is steering. Manual keyboard frame correction must not
+        // swap these channels during autonomous inference.
+        PublishDriveInternal(normalizedLinear, normalizedAngular, false);
+    }
+
     public void PublishStop()
     {
         if (!publishersRegistered)
@@ -240,6 +274,43 @@ public class ROSBridge : MonoBehaviour
     public void OpenGripper()
     {
         PublishGripperCommand(openGripperCommand);
+    }
+
+    public void CloseGripperForTargetClass(int targetClassId)
+    {
+        if (useDirectServoForTargetGrip)
+        {
+            enableDirectServoTopic = true;
+            float angle = targetClassId == 1
+                ? clawCubeGripAngle
+                : clawBallGripAngle;
+            lastGripTargetClassId = targetClassId;
+            lastGripAngle = angle;
+            targetGripCommandsSent++;
+            PublishServoAngle(clawServoChannel, angle);
+            if (logPublishedCommands)
+            {
+                string targetName = targetClassId == 1 ? "cube" : "ball";
+                Debug.Log(
+                    $"[ROSBridge] GRAB {targetName}: S{clawServoChannel}={angle:F1} deg",
+                    this
+                );
+            }
+            return;
+        }
+
+        CloseGripper();
+    }
+
+    public void OpenCalibratedClaw()
+    {
+        if (useDirectServoForTargetGrip)
+        {
+            PublishServoAngle(clawServoChannel, clawOpenAngle);
+            return;
+        }
+
+        OpenGripper();
     }
 
     public void PublishCameraPan(float yawDegrees)
@@ -276,6 +347,11 @@ public class ROSBridge : MonoBehaviour
         ros.Publish(topic, new Float32Msg(DegreesToCameraProtocol(sentCameraTiltDegrees)));
     }
 
+    public void PublishCameraCmd(float normalizedYaw)
+    {
+        PublishCameraPan(Mathf.Clamp(normalizedYaw, -1f, 1f) * 90f);
+    }
+
     public void PublishGripperCommand(int command)
     {
         if (!enableGripperTopic)
@@ -285,6 +361,11 @@ public class ROSBridge : MonoBehaviour
 
         RegisterPublishers();
         ros.Publish(gripperTopic, new Int32Msg(command));
+    }
+
+    public void PublishGripperCmd(int command)
+    {
+        PublishGripperCommand(command);
     }
 
     public void PublishServoAngle(int channel, float angleDegrees)
@@ -349,10 +430,9 @@ public class ROSBridge : MonoBehaviour
             ros.RegisterPublisher<Float32Msg>(cameraTiltTopic);
         }
 
-        if (enableDirectServoTopic)
-        {
-            ros.RegisterPublisher<Vector3Msg>(directServoTopic);
-        }
+        // Register this unconditionally. Autonomous pickup may enable direct
+        // S4 control after another publisher has already been registered.
+        ros.RegisterPublisher<Vector3Msg>(directServoTopic);
 
         publishersRegistered = true;
     }

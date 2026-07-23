@@ -19,6 +19,8 @@ public class YoloDataPacket
     public float frame_h;
     public int seq;
     public double timestamp;
+    public int target_class_id = -1;
+    public string target_label;
     public YoloDetectionPacket[] detections;
 }
 
@@ -42,6 +44,7 @@ public class RealVision : MonoBehaviour
     public bool listenOnStart = true;
     [Min(0.05f)] public float staleAfterSeconds = 1.0f;
     [Range(1, 64)] public int maxQueuedPackets = 8;
+    [Min(0.1f)] public float maxViewDistance = 6f;
 
     [Header("Live detection (read only)")]
     [SerializeField] bool isTargetVisible;
@@ -52,6 +55,8 @@ public class RealVision : MonoBehaviour
     [SerializeField] float boxWidthPixels;
     [SerializeField] float boxHeightPixels;
     [SerializeField] int detectionCount;
+    [SerializeField] int targetClassId = -1;
+    [SerializeField] string targetLabel = "";
 
     [Header("Diagnostics (read only)")]
     [SerializeField] bool listenerRunning;
@@ -72,6 +77,7 @@ public class RealVision : MonoBehaviour
     UdpClient udpClient;
     volatile bool stopRequested;
     float lastPacketTime = -1f;
+    float lastKnownTargetX;
     float rateWindowStarted;
     int packetsInRateWindow;
     YoloDetectionPacket[] detections = Array.Empty<YoloDetectionPacket>();
@@ -82,14 +88,92 @@ public class RealVision : MonoBehaviour
 
     // Matches SimulatedYoloCamera: 0 means close and 1 means far/not visible.
     public float Distance01 => distance01;
+    public int TargetClassId => targetClassId;
+    public string TargetLabel => targetLabel;
     public YoloDetectionPacket[] Detections => detections;
+
+    public bool TryGetTarget(
+        int requestedClassId,
+        out float normalizedX,
+        out float normalizedDistance,
+        out float targetConfidence,
+        out string label)
+    {
+        normalizedX = 0f;
+        normalizedDistance = 1f;
+        targetConfidence = 0f;
+        label = "";
+
+        if (requestedClassId < 0)
+        {
+            if (!isTargetVisible)
+            {
+                return false;
+            }
+
+            normalizedX = targetX;
+            normalizedDistance = distance01;
+            targetConfidence = confidence;
+            label = targetLabel;
+            return true;
+        }
+
+        // Some YOLO senders provide only the selected top-level target and no
+        // detections array. Accept that packet when it is the requested class.
+        if (isTargetVisible && targetClassId == requestedClassId)
+        {
+            normalizedX = targetX;
+            normalizedDistance = distance01;
+            targetConfidence = confidence;
+            label = string.IsNullOrWhiteSpace(targetLabel)
+                ? TargetLabelForClass(requestedClassId)
+                : targetLabel;
+            return true;
+        }
+
+        YoloDetectionPacket best = null;
+        float bestScore = -1f;
+        foreach (YoloDetectionPacket detection in detections)
+        {
+            if (detection == null || detection.class_id != requestedClassId)
+            {
+                continue;
+            }
+
+            float area = Mathf.Clamp01(detection.width) * Mathf.Clamp01(detection.height);
+            float score = area * (0.5f + 0.5f * Mathf.Clamp01(detection.conf));
+            if (score <= bestScore)
+            {
+                continue;
+            }
+
+            best = detection;
+            bestScore = score;
+        }
+
+        if (best == null)
+        {
+            return false;
+        }
+
+        float centerX = Mathf.Clamp01(best.x + best.width * 0.5f);
+        normalizedX = Mathf.Clamp(centerX * 2f - 1f, -1f, 1f);
+        normalizedDistance = 1f - Mathf.Clamp01(best.height);
+        targetConfidence = Mathf.Clamp01(best.conf);
+        label = string.IsNullOrWhiteSpace(best.label)
+            ? TargetLabelForClass(requestedClassId)
+            : best.label;
+        return true;
+    }
 
     // Compatibility names from the Practice 7 guide.
     public bool seesBall => isTargetVisible;
     public float normalizedAngle => targetX;
-
-    // Raw bounding-box proximity: larger means closer.
-    public float normalizedDistance => boxHeight01;
+    public float normalizedDistance => distance01;
+    public float lastKnownBallDirection => lastKnownTargetX;
+    public float yoloConfidence => confidence;
+    public float bboxWidth => boxWidthPixels;
+    public float bboxHeight => boxHeightPixels;
 
     void OnEnable()
     {
@@ -174,6 +258,7 @@ public class RealVision : MonoBehaviour
         lastError = "";
         lastSequence = -1;
         lastSourceTimestamp = -1.0;
+        lastKnownTargetX = 0f;
         listenerStatus = $"Starting UDP {udpPort}";
         listenerThread = new Thread(ListenLoop)
         {
@@ -315,6 +400,11 @@ public class RealVision : MonoBehaviour
             {
                 isTargetVisible = true;
                 targetX = Mathf.Clamp(packet.angle, -1f, 1f);
+                lastKnownTargetX = targetX;
+                targetClassId = packet.target_class_id;
+                targetLabel = string.IsNullOrWhiteSpace(packet.target_label)
+                    ? TargetLabelForClass(targetClassId)
+                    : packet.target_label;
 
                 // Python sends box height / frame height, which grows as the ball
                 // approaches. RobotBrain was trained with the opposite convention.
@@ -372,6 +462,15 @@ public class RealVision : MonoBehaviour
         isTargetVisible = false;
         targetX = 0f;
         distance01 = 1f;
+        targetClassId = -1;
+        targetLabel = "";
+    }
+
+    static string TargetLabelForClass(int classId)
+    {
+        if (classId == 0) return "ball";
+        if (classId == 1) return "cube";
+        return classId >= 0 ? $"class {classId}" : "";
     }
 
     void ClearVision()
@@ -396,5 +495,45 @@ public class RealVision : MonoBehaviour
         udpPort = Mathf.Clamp(udpPort, 1, 65535);
         staleAfterSeconds = Mathf.Max(0.05f, staleAfterSeconds);
         maxQueuedPackets = Mathf.Clamp(maxQueuedPackets, 1, 64);
+        maxViewDistance = Mathf.Max(0.1f, maxViewDistance);
+    }
+}
+
+// Optional compatibility hook for the supplied RobotBrain.
+// Leave this component off the robot unless per-step diagnostics are needed.
+public class DiagnosticLogger : MonoBehaviour
+{
+    public void LogStep(
+        int step,
+        bool ballSeen,
+        float ballAngle,
+        float ballDistance,
+        float ultrasonic,
+        int leftIr,
+        int rightIr,
+        int gripperIr,
+        float cameraYaw,
+        float gas,
+        float steering,
+        float cameraInput,
+        bool hasBall,
+        int holdTicks,
+        bool retrying,
+        bool closeToBall,
+        int blindApproachTicks,
+        bool ballRecentlySeen,
+        int holdWithoutIr,
+        float displacementX,
+        float displacementZ,
+        float heading,
+        float speed,
+        float worldX,
+        float worldZ,
+        float yoloConfidence,
+        float bboxWidth,
+        float bboxHeight,
+        float pwmLeft,
+        float pwmRight)
+    {
     }
 }

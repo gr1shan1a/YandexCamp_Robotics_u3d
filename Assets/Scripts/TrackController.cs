@@ -13,6 +13,8 @@ public class TrackController : MonoBehaviour
     public float steeringAcceleration = 2.5f;
     [Tooltip("How quickly steering returns to center after releasing A/D.")]
     public float steeringDeceleration = 4f;
+    [Tooltip("Legacy RobotBrain compatibility value used during training randomization.")]
+    [Range(0.01f, 1f)] public float smoothing = 0.15f;
 
     [Header("Motor model")]
     public float motorDeadzone = 10f;
@@ -44,6 +46,11 @@ public class TrackController : MonoBehaviour
     {
         gasCommand = Mathf.Clamp(gas, -1f, 1f);
         steerCommand = Mathf.Clamp(steer, -1f, 1f);
+    }
+
+    public void Move(float gas, float steer)
+    {
+        SetCommand(gas, steer);
     }
 
     public void Stop()

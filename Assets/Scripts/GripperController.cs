@@ -106,6 +106,17 @@ public class GripperController : MonoBehaviour
 
     public bool IsHolding => heldBall != null;
     public bool HasBall => IsHolding;
+    public bool hasBall
+    {
+        get => IsHolding;
+        set
+        {
+            if (!value)
+            {
+                Release();
+            }
+        }
+    }
     public bool JawsClosed { get; private set; }
     public float JawClosure01 { get; private set; }
     public bool ElbowReady => elbowConfigurationValid;
@@ -499,10 +510,20 @@ public class GripperController : MonoBehaviour
         CloseJaws();
     }
 
+    public void CloseGripper()
+    {
+        Close();
+    }
+
     public void Open()
     {
         OpenJaws();
         Release();
+    }
+
+    public void OpenGripper()
+    {
+        Open();
     }
 
     public void ResetState()
